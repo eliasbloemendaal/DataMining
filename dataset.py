@@ -86,7 +86,7 @@ class User:
 
     def _transform_variables(self, raw_variables):
         #transform dataframe to time series per variable
-        result = pd.DataFrame(index = pd.date_range(start = self.min_time, end = self.max_time))
+        result = pd.DataFrame(index = pd.date_range(start = self.min_time.day, end = self.max_time.day, freq = 'D'))
         #result.set_index pd.date_range(start = self.min_time, end = self.max_time)
         for raw_variable in raw_variables:
             variable = raw_variable.value
@@ -100,6 +100,7 @@ class User:
 
             for var in transformed_var:
                 result = pd.concat([result,var], axis = 1)
+            
 
         return result
     def _shift_variables(self, variables, nr_days=1):
@@ -111,21 +112,25 @@ class User:
     def _merge_shifted_variables(self, variables, nr_days):
         #create variable dataframe with history and filter overall timeframe accordingly
         vars_with_hist = pd.concat(variables, axis=1)
-        #vars_with_hist = reduce(lambda df1, df2: df1.merge(df2, how='outer', left_index = True, right_index = True), variables)
-        #print((self.min_time, nr_days))
-        #print(self.min_time+datetime.timedelta(days=nr_days))
         vars_with_hist = vars_with_hist.loc[((vars_with_hist.index >= self.min_time+datetime.timedelta(days=nr_days)) & (vars_with_hist.index <= self.max_time))]
-        #vars_with_hist = vars_with_hist.between_time(self.min_time+datetime.timedelta(days=nr_days), self.max_time)
 
         return vars_with_hist
 
-    def _post_process_history(self, variables):
+    def _post_process_history(self, variables, use_sax):
         #clean df and return (features,response) tuple in np format
         variables = variables.dropna(subset=['mood'])
         response = variables.mood.copy()
         variables.drop([response.name], axis = 1, inplace = True)
 
-        return (response.values, variables.as_matrix())
+        if use_sax:
+            mood_hist_cols = [col for col in variables if ('mood' in col) and (len(col) > 4)]
+            for col in mood_hist_cols:
+                sax_repr =  self._variable_to_sax(variables[col], self.alphabet_size)
+                variables.drop([col], axis = 1, inplace = True)
+                variables[col] = sax_repr
+
+        self.history_response = response
+        self.history_features = variables
 
     def create_history(self, nr_days, use_sax = False):
         if use_sax: 
@@ -133,6 +138,8 @@ class User:
         else:
             variables = self.variables.copy()
         #copy response so we can add it back in later
+        print(self.variables.head())
+        input('hallo')
         response = variables.mood.copy()
 
         #initialize df with right time span
@@ -144,10 +151,9 @@ class User:
         #print(shifted_variables)
 
         vars_with_hist = self._merge_shifted_variables(shifted_variables, nr_days)
-
         vars_with_hist.to_csv('test.csv')
 
-        return self._post_process_history(vars_with_hist)
+        self._post_process_history(vars_with_hist, use_sax)
 
 
 
@@ -174,6 +180,3 @@ class Dataset:
         self.min_time = min(df.time)
         self.max_time = max(df.time)
 
-    def _reduce_dim(self, series, n, w):
-        #Implementation of PAA Dimensionality reduction
-        None

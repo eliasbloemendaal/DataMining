@@ -22,5 +22,8 @@ for user in Dataset.users:
     #print(user.variables.head())
     user.get_sax_representation(5)
     #print(user.sax_representation.head())
-    user.create_history(5, True)
+    user.create_history(5, False)
+    #print(user.history_response.head())
+    #print(user.history_features.head())
+    #print(user.variables.head())
     break
