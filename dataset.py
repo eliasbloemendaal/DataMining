@@ -38,6 +38,8 @@ class User:
 
     def _normalize_variable(self, variable):
         #scales variable back to standard normal
+        if variable.std() == 0:
+            return variable
         return variable.apply(lambda x: (x - variable.mean()/variable.std()))
 
     def _get_breakpoints(self, alphabet_size):
@@ -136,8 +138,10 @@ class User:
         self.history_response = response
         self.history_features = variables
 
-    def create_history(self, nr_days, use_sax = False):
-        if use_sax: 
+    def create_history(self, nr_days, use_sax = False, alphabet_size = 5):
+        if use_sax:
+            if self.sax_representation is None:
+                self.get_sax_representation(alphabet_size) 
             variables = self.sax_representation.copy()
         else:
             variables = self.variables.copy()
@@ -170,7 +174,8 @@ class User:
         self.min_time = min(df.time)
         self.max_time = max(df.time)
         self.variables = self._transform_variables([x for _, x in df.groupby(df['variable'])])
-        self.alphabet_size = None 
+        self.alphabet_size = None
+        self.sax_representation = None 
 
 
 class Dataset:
