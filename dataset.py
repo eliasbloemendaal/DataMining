@@ -113,6 +113,10 @@ class User:
         #create variable dataframe with history and filter overall timeframe accordingly
         vars_with_hist = pd.concat(variables, axis=1)
         vars_with_hist = vars_with_hist.loc[((vars_with_hist.index >= self.min_time+datetime.timedelta(days=nr_days)) & (vars_with_hist.index <= self.max_time))]
+        mood = vars_with_hist['mood']
+        vars_with_hist.drop(vars_with_hist.columns[:32],inplace=True, axis=1)
+        vars_with_hist['mood'] = mood
+        #vars_with_hist.drop(subset=[activity,appCat.builtin_sum,appCat.builtin_count,'appCat.communication_sum','appCat.communication_count','appCat.entertainment_sum','appCat.entertainment_count','appCat.finance_sum','appCat.finance_count','appCat.game_sum','appCat.game_count','appCat.office_sum','appCat.office_count','appCat.other_sum','appCat.other_count','appCat.social_sum','appCat.social_count','appCat.travel_sum','appCat.travel_count','appCat.unknown_sum','appCat.unknown_count','appCat.utilities_sum','appCat.utilities_count','appCat.weather_sum','appCat.weather_count','call','circumplex.arousal','circumplex.valence','screen_sum','screen_count','sms'])
 
         return vars_with_hist
 
@@ -138,8 +142,6 @@ class User:
         else:
             variables = self.variables.copy()
         #copy response so we can add it back in later
-        print(self.variables.head())
-        input('hallo')
         response = variables.mood.copy()
 
         #initialize df with right time span
