@@ -197,7 +197,7 @@ for opt_feature_model in opt_features_models:
 
     rows_list = append_deep_copy(rows_list, 'SVM', nr_features, mse, svm_cv.best_params_)
 
-with open('rows_list-{}.pickle'.format(USE_SAX)) as f:
+with open('rows_list-{}.pickle'.format(USE_SAX), 'wb') as f:
     pickle.dump(rows_list, f)
 df = pd.DataFrame(rows_list)
 df.to_csv('total_performance_overview-{}.csv'.format(USE_SAX))
