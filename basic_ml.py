@@ -4,13 +4,17 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor, ExtraTreesRegressor
 from sklearn.svm import SVR
 from sklearn.feature_selection import RFE
+from sklearn.linear_model import RandomizedLasso
+from sklearn.decomposition import PCA
+from sklearn.manifold import Isomap
 import matplotlib.pyplot as plt
 import time
 import numpy as np
 import matplotlib as mpl
 from math import sqrt
 from copy import deepcopy
-mpl.use('agg')
+import pandas as pd
+#mpl.use('agg')
 
 USE_SAX = False
 FEATURE_REDUCTION = False
@@ -23,6 +27,93 @@ else:
     y = pickle.load(open('y_reg.p', 'rb'))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 1234)
+
+
+################################################################
+# Dimensionality reduction
+################################################################
+
+def pca_reduce(X, dim):
+    pca = PCA(n_components = dim)
+
+    X_reduced = pca.fit_transform(X)
+    return X_reduced
+
+def isomap_reduce(X, dim):
+    iso = Isomap(n_components = dim)
+
+    X_reduced = iso.fit_transform(X)
+    return X_reduced
+
+def _find_best_dim_red(dims, model, model_name, X, y, params):
+
+    rows_list = []
+    for dim in dims:
+        for f in [pca_reduce, isomap_reduce]:
+
+            print('Start reducing dimensionality using {} to {} dimensions'.format(f.__name__, dim))
+            t0 = time.time()
+            #reduce dimensionality
+            print(X.shape)
+            X_red = f(X, dim)
+            print(X_red.shape)
+            X_train_red, X_test_red,y_train, y_test = train_test_split(X_red, y, test_size = 0.2, random_state = 1234)
+            X_train_red = f(X_train_red, dim)
+            X_test_red = f(X_test_red, dim)
+            t1 = time.time()
+            print('Reducing dimensions cost {} seconds'.format(t1-t0))
+            #Optimize model using grid search and cross validation
+            print('Start optimizing {} model'.format(model_name))
+            t0 = time.time()
+            optimized_model = GridSearchCV(model, params, cv = 10, refit = True)
+            optimized_model.fit(X_train_red, y_train)
+            t1 = time.time()
+            print('Optimizing took {} seconds'.format(t1-t0))
+            print('best found parameters')
+            print(optimized_model.best_params_)
+
+            y_pred = optimized_model.predict(X_test_red)
+
+            mse = sk.metrics.mean_squared_error(y_test, y_pred)
+            print("MSE on test set: {}".format(mse))
+            #administration
+            rows_list.append({'model':deepcopy(model_name),
+                                'dimensions':deepcopy(dim),
+                                'reduction technique':deepcopy(f.__name__),
+                                'mse':deepcopy(mse),
+                                'parameters':str(deepcopy(optimized_model.best_params_))})
+            #store model
+            doc = open('models/{}-{}-{}.pickle'.format(f.__name__,model_name, dim), 'wb')
+            pickle.dump(optimized_model, doc)
+            doc.close()
+
+    adm_df = pd.DataFrame(rows_list)
+    adm_df.to_csv('{}-dim_reduction.csv'.format(model_name))
+
+                
+            
+def dim_reduction_search(X, y):
+
+    rf_params  = {"max_depth": [3, None],
+                  "max_features": [1, 3, 10, 'sqrt', 'log2', 'auto'],
+                  "min_samples_split": [2, 3, 10],
+                  "min_samples_leaf": [1, 3, 10],
+                  "bootstrap": [True, False],
+                  "criterion": ["mse", "mae"]}
+
+    
+    ada_params = {'n_estimators':[10, 50, 100, 300, 500],
+                    'learning_rate':[1, 0.5, 0.1, 0.01, 0.001],
+                    'loss':['linear', 'square', 'exponential']
+                }
+
+    dims = [ 10, 20, 30, 50]
+
+    #_find_best_dim_red(dims, AdaBoostRegressor(), 'AdaBoost', X, y, ada_params)
+    _find_best_dim_red(dims, RandomForestRegressor(), 'RandomForest', X, y, rf_params)
+
+
+
 #X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size = 0.2)
 
 ##############################################################
@@ -82,8 +173,10 @@ def ET_feature_selection():
     fig.savefig('boxplot.png', bbox_inches='tight')
     input('hallo')
 
-
-
+##############################################################
+#Dimensionality reduction search
+##############################################################
+dim_reduction_search(X, y)
 
 ##############################################################
 #Grid search + CV
@@ -92,14 +185,13 @@ def append_deep_copy(rows_list, model_name, nr_features, mse, params):
     result = {'model':deepcopy(model_name),
                 'nr_features':deepcopy(nr_features),
                 'MSE':deepcopy(mse),
-                'parameters':deepcopy(params)}
+                'parameters':str(deepcopy(params))}
     rows_list.append(result)
 
     return rows_list
 
+
 rows_list = []
-
-
 opt_features_models = pickle.load(open('optimal_features_model_{}.pickle'.format(USE_SAX), 'rb'))
 for opt_feature_model in opt_features_models:
     feature_set = opt_feature_model[1].support_
@@ -171,7 +263,7 @@ for opt_feature_model in opt_features_models:
     rows_list = append_deep_copy(rows_list, 'Random Forest', nr_features, mse, rf_cv.best_params_)
 
 
-    #SVM
+    '''#SVM
     t5 = time.time()
     print('start optimizing parameters for Support Vector Machine')
     svm_params  = [
@@ -195,7 +287,7 @@ for opt_feature_model in opt_features_models:
     mse = sk.metrics.mean_squared_error(y_test, y_pred)
     print("MSE on test set: {}".format(mse))
 
-    rows_list = append_deep_copy(rows_list, 'SVM', nr_features, mse, svm_cv.best_params_)
+    rows_list = append_deep_copy(rows_list, 'SVM', nr_features, mse, svm_cv.best_params_)'''
 
 with open('rows_list-{}.pickle'.format(USE_SAX), 'wb') as f:
     pickle.dump(rows_list, f)

@@ -19,6 +19,11 @@ user_dfs = [x for _, x in df.groupby(df['id'])]
 
 Dataset = dataset.Dataset(df)
 
+for user in Dataset.users:
+    user.variables['id'] = user.id
+
+pd.concat([user.variables for user in Dataset.users]).to_csv('RuthsList.csv')
+
 '''for user in Dataset.users:
     #print(user.variables.head())
     user.get_sax_representation(5)
