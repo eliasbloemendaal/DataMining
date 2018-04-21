@@ -3,7 +3,7 @@ import sklearn as sk
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor, ExtraTreesRegressor
 from sklearn.svm import SVR
-from sklearn.feature_selection import RFE
+from sklearn.feature_selection import RFECV
 from sklearn.linear_model import RandomizedLasso
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
@@ -109,7 +109,7 @@ def dim_reduction_search(X, y):
 
     dims = [ 10, 20, 30, 50]
 
-    #_find_best_dim_red(dims, AdaBoostRegressor(), 'AdaBoost', X, y, ada_params)
+    _find_best_dim_red(dims, AdaBoostRegressor(), 'AdaBoost', X, y, ada_params)
     _find_best_dim_red(dims, RandomForestRegressor(), 'RandomForest', X, y, rf_params)
 
 
@@ -191,8 +191,35 @@ def append_deep_copy(rows_list, model_name, nr_features, mse, params):
     return rows_list
 
 
+
+for estimator in [(AdaBoostRegressor(), 'AdaBoost'), (RandomForestRegressor(), 'RF')]:
+    print('Optimizing {} using CV RFE'.format(estimator[0]))
+    t0 = time.time()
+    selector = RFECV(estimator[0], step=1, cv=10)
+    selector = selector.fit(X_train, y_train)
+    t1 = time.time()
+    print('Optimizing done in {} seconds, storing model..'.format(t1-t0))
+    print('Best parameters:')
+    print(selector.get_params())
+    print('Selected features ({}): {}'.format(len(selector.get_support()[selector.get_support()]),selector.get_support()))
+    doc = open('models/RFE-{}-{}.pickle'.format(estimator[1],USE_SAX), 'wb')
+    pickle.dump(selector, doc)
+    doc.close()
+
+RL = RandomizedLasso(alpha='aic')
+print('Start optimizing using Randomized Lasso')
+t0 = time.time()
+RL.fit(X, y)
+t1 = time.time()
+print('Optimizing done in {} seconds'.format(t1-t0))
+print('Best parameters: {}'.format(RL.get_params()))
+print('Best features: {}'.format(RL.get_support()))
+doc = open('RandomizedLasso-{}.pickle'.format(USE_SAX), 'wb')
+pickle.dump(RL, doc)
+doc.close()
+
 rows_list = []
-opt_features_models = pickle.load(open('optimal_features_model_{}.pickle'.format(USE_SAX), 'rb'))
+''''opt_features_models = pickle.load(open('optimal_features_model_{}.pickle'.format(USE_SAX), 'rb'))
 for opt_feature_model in opt_features_models:
     feature_set = opt_feature_model[1].support_
     nr_features = len(opt_feature_model[1].support_[opt_feature_model[1].support_])
@@ -263,7 +290,7 @@ for opt_feature_model in opt_features_models:
     rows_list = append_deep_copy(rows_list, 'Random Forest', nr_features, mse, rf_cv.best_params_)
 
 
-    '''#SVM
+    #SVM
     t5 = time.time()
     print('start optimizing parameters for Support Vector Machine')
     svm_params  = [
@@ -287,12 +314,12 @@ for opt_feature_model in opt_features_models:
     mse = sk.metrics.mean_squared_error(y_test, y_pred)
     print("MSE on test set: {}".format(mse))
 
-    rows_list = append_deep_copy(rows_list, 'SVM', nr_features, mse, svm_cv.best_params_)'''
+    rows_list = append_deep_copy(rows_list, 'SVM', nr_features, mse, svm_cv.best_params_)
 
 with open('rows_list-{}.pickle'.format(USE_SAX), 'wb') as f:
     pickle.dump(rows_list, f)
 df = pd.DataFrame(rows_list)
-df.to_csv('total_performance_overview-{}.csv'.format(USE_SAX))
+df.to_csv('total_performance_overview-{}.csv'.format(USE_SAX))'''
 
 
 

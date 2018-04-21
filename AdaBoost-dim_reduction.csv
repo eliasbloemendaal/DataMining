@@ -1,11 +1,9 @@
 ,dimensions,model,mse,parameters,reduction technique
-0,5,AdaBoost,0.4918314701555565,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 100}",pca_reduce
-1,5,AdaBoost,0.5202082130186237,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 50}",isomap_reduce
-2,10,AdaBoost,0.5486503378369918,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 50}",pca_reduce
-3,10,AdaBoost,0.5081710205674576,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 10}",isomap_reduce
-4,20,AdaBoost,0.5290543361922418,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 50}",pca_reduce
-5,20,AdaBoost,0.5159919528828376,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 10}",isomap_reduce
-6,30,AdaBoost,0.5134711340388186,"{'learning_rate': 0.01, 'loss': 'linear', 'n_estimators': 10}",pca_reduce
-7,30,AdaBoost,0.5151996338775291,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 100}",isomap_reduce
-8,50,AdaBoost,0.5687562623092455,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 300}",pca_reduce
-9,50,AdaBoost,0.5149152544811018,"{'learning_rate': 0.01, 'loss': 'exponential', 'n_estimators': 100}",isomap_reduce
+0,10,AdaBoost,0.5459309892639027,"{'learning_rate': 0.01, 'loss': 'linear', 'n_estimators': 50}",pca_reduce
+1,10,AdaBoost,0.6515510658145914,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 10}",isomap_reduce
+2,20,AdaBoost,0.6465365233787476,"{'learning_rate': 0.5, 'loss': 'square', 'n_estimators': 50}",pca_reduce
+3,20,AdaBoost,0.5238015041410015,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 10}",isomap_reduce
+4,30,AdaBoost,0.5879964405966204,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 300}",pca_reduce
+5,30,AdaBoost,0.5435883295690189,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 10}",isomap_reduce
+6,50,AdaBoost,0.533696784517619,"{'learning_rate': 1, 'loss': 'linear', 'n_estimators': 100}",pca_reduce
+7,50,AdaBoost,0.522755965699189,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 100}",isomap_reduce
