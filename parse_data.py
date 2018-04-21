@@ -46,8 +46,6 @@ Utilize engineered features:
 extra_features = pd.read_csv('assignment1_ruth/extra_data.csv', header = 0, index_col = 0, parse_dates = ['datetime'], usecols =[x for x in range(1,11)])
 
 #model over all users
-features = []
-response = []
 use_sax = False
 
 #join extra features
@@ -55,6 +53,8 @@ for user in Dataset.users:
     user.variables = user.variables.join(extra_features)
 
 for day in [2,3,4,5,6]:
+    features = []
+    response = []
     for user in Dataset.users:
         #user.variables = user.variables.join(extra_features)
         user.create_history(day, use_sax)
