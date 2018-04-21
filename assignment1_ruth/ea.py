@@ -31,9 +31,7 @@ class Individual:
 		self.prob_mutate = 0.01
 
 
-
-
-class genetic_algorithm:
+class GeneticAlgorithm:
 
 	def mutation(self, children):
 		for i in range(len(children)):
@@ -183,4 +181,4 @@ class genetic_algorithm:
 
 
 
-genetic_algorithm()
+GeneticAlgorithm()
