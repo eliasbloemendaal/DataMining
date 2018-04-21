@@ -16,8 +16,16 @@ from copy import deepcopy
 import pandas as pd
 #mpl.use('agg')
 
+################################################################
+# Modules to use
+###############################################################
 USE_SAX = False
 FEATURE_REDUCTION = False
+DIM_REDUCTION_SEARCH = False
+
+################################################################
+
+
 print('Using sax: {}'.format(USE_SAX))
 if USE_SAX:
     X = pickle.load(open('X_sax.p', 'rb'))
@@ -99,7 +107,7 @@ def dim_reduction_search(X, y):
                   "min_samples_split": [2, 3, 10],
                   "min_samples_leaf": [1, 3, 10],
                   "bootstrap": [True, False],
-                  "criterion": ["mse", "mae"]}
+                  "criterion": ["mse"]}
 
     
     ada_params = {'n_estimators':[10, 50, 100, 300, 500],
@@ -176,7 +184,8 @@ def ET_feature_selection():
 ##############################################################
 #Dimensionality reduction search
 ##############################################################
-dim_reduction_search(X, y)
+if DIM_REDUCTION_SEARCH:
+    dim_reduction_search(X, y)
 
 ##############################################################
 #Grid search + CV
@@ -191,20 +200,59 @@ def append_deep_copy(rows_list, model_name, nr_features, mse, params):
     return rows_list
 
 
+params = {'RF': {"max_depth": [3, None],
+                  "max_features": [1, 3, 10, 'sqrt', 'log2', 'auto'],
+                  "min_samples_split": [2, 3, 10],
+                  "min_samples_leaf": [1, 3, 10],
+                  "bootstrap": [True, False],
+                  "criterion": ["mse"]},
+
+    
+    'AdaBoost' : {'n_estimators':[10, 50, 100, 300, 500],
+                    'learning_rate':[1, 0.5, 0.1, 0.01, 0.001],
+                    'loss':['linear', 'square', 'exponential']
+                }}
+
+##############################################################
+# Recursive Feature Elimination
+#############################################################
 
 for estimator in [(AdaBoostRegressor(), 'AdaBoost'), (RandomForestRegressor(), 'RF')]:
-    print('Optimizing {} using CV RFE'.format(estimator[0]))
+
+    #Get features and store feature selector
+    print('Optimizing {} using CV RFE'.format(estimator[1]))
     t0 = time.time()
     selector = RFECV(estimator[0], step=1, cv=10)
     selector = selector.fit(X_train, y_train)
+    X_train_transformed = selector.transform(X_train)
+    X_test_transformed = selector.transform(X_test)
     t1 = time.time()
-    print('Optimizing done in {} seconds, storing model..'.format(t1-t0))
-    print('Best parameters:')
-    print(selector.get_params())
+    print('Optimizing features done in {} seconds, storing model..'.format(t1-t0))
     print('Selected features ({}): {}'.format(len(selector.get_support()[selector.get_support()]),selector.get_support()))
-    doc = open('models/RFE-{}-{}.pickle'.format(estimator[1],USE_SAX), 'wb')
+    doc = open('models/RFE-{}-selector.pickle'.format(estimator[1]), 'wb')
     pickle.dump(selector, doc)
     doc.close()
+
+    #Optimize hyperparameters and evaluate model
+    print('Start optimizing hyperparameters using determined features...')
+    t0 = time.time()
+    opt_model = GridSearchCV(estimator[0], params[estimator[1]], cv = 10, refit = True)
+    opt_model.fit(X_train_transformed, y_train)
+    t1 = time.time()
+
+    print('Optimizing took {} seconds'.format((t1-t0)))
+    print('best found parameters')
+    print(opt_model.best_params_)
+    y_pred = opt_model.predict(X_test_transformed)
+    mse = sk.metrics.mean_squared_error(y_test, y_pred)
+    print("MSE on test set: {}".format(mse))
+    model_doc = open('models/RFE-{}-model.pickle'.format(estimator[1]), 'wb')
+    pickle.dump(opt_model, model_doc)
+    model_doc.close()
+
+##############################################################
+# Feature Stability Selection
+#############################################################   
 
 RL = RandomizedLasso(alpha='aic')
 print('Start optimizing using Randomized Lasso')
@@ -217,6 +265,27 @@ print('Best features: {}'.format(RL.get_support()))
 doc = open('RandomizedLasso-{}.pickle'.format(USE_SAX), 'wb')
 pickle.dump(RL, doc)
 doc.close()
+
+X_train_RL = RL.transform(X_train)
+X_test_RL = RL.transform(X_test)
+print('Using RL features to optimize model..')
+for estimator in [(AdaBoostRegressor(), 'AdaBoost'), (RandomForestRegressor(), 'RF')]:
+    print('Optimizing {} using CV RFE'.format(estimator[0]))
+    t0 = time.time()
+    opt_model = GridSearchCV(estimator[0], params[estimator[1]], cv = 10, refit = True)
+    opt_model.fit(X_train_RL, y_train)
+    t1 = time.time()
+
+    print('Optimizing took {} seconds'.format((t1-t0)))
+    print('best found parameters')
+    print(opt_model.best_params_)
+    y_pred = opt_model.predict(X_test_RL)
+    mse = sk.metrics.mean_squared_error(y_test, y_pred)
+    print("MSE on test set: {}".format(mse))
+    model_doc = open('models/RandomizedLassoL-{}-model.pickle'.format(estimator[1]), 'wb')
+    pickle.dump(opt_model, model_doc)
+    model_doc.close()
+
 
 rows_list = []
 ''''opt_features_models = pickle.load(open('optimal_features_model_{}.pickle'.format(USE_SAX), 'rb'))

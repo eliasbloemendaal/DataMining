@@ -1,9 +1,9 @@
 ,dimensions,model,mse,parameters,reduction technique
-0,10,AdaBoost,0.5459309892639027,"{'learning_rate': 0.01, 'loss': 'linear', 'n_estimators': 50}",pca_reduce
-1,10,AdaBoost,0.6515510658145914,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 10}",isomap_reduce
-2,20,AdaBoost,0.6465365233787476,"{'learning_rate': 0.5, 'loss': 'square', 'n_estimators': 50}",pca_reduce
-3,20,AdaBoost,0.5238015041410015,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 10}",isomap_reduce
-4,30,AdaBoost,0.5879964405966204,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 300}",pca_reduce
-5,30,AdaBoost,0.5435883295690189,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 10}",isomap_reduce
-6,50,AdaBoost,0.533696784517619,"{'learning_rate': 1, 'loss': 'linear', 'n_estimators': 100}",pca_reduce
-7,50,AdaBoost,0.522755965699189,"{'learning_rate': 0.1, 'loss': 'linear', 'n_estimators': 100}",isomap_reduce
+0,10,AdaBoost,0.5479887371853982,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 100}",pca_reduce
+1,10,AdaBoost,0.4943433205464482,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 100}",isomap_reduce
+2,20,AdaBoost,0.5020735590247506,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 10}",pca_reduce
+3,20,AdaBoost,0.5114974627491965,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 100}",isomap_reduce
+4,30,AdaBoost,0.5100384514238681,"{'learning_rate': 0.01, 'loss': 'exponential', 'n_estimators': 50}",pca_reduce
+5,30,AdaBoost,0.5138266176013042,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 50}",isomap_reduce
+6,50,AdaBoost,0.5455877033023752,"{'learning_rate': 0.001, 'loss': 'square', 'n_estimators': 50}",pca_reduce
+7,50,AdaBoost,0.5096713125199811,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 50}",isomap_reduce

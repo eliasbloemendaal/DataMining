@@ -9,6 +9,21 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.ensemble import AdaBoostRegressor
 df = pd.read_csv('dataset_mood_smartphone (1).csv', header = 0, index_col = 0, parse_dates = ['time'])
 
+"""#Filter time outliers
+df = df[df.time > '01-01-2013']
+#Drop outliers
+df = df[df.outlier == 0]
+df.drop(columns=['outlier'])"""
+
+
+"""
+Pre-processing steps:
+App.catBuiltin > 0
+App.cat.Entertainment > 0
+
+Remove outliers from data 95%
+
+"""
 #print(min(df.time)) # 2014-02-17
 #print(max(df.time)) # 2014-06-09
 
@@ -19,8 +34,8 @@ user_dfs = [x for _, x in df.groupby(df['id'])]
 
 Dataset = dataset.Dataset(df)
 
-#for user in Dataset.users:
-#    user.variables['id'] = user.id
+for user in Dataset.users:
+    user.variables['id'] = user.id
 
 pd.concat([user.variables for user in Dataset.users]).to_csv('RuthsList.csv')
 
