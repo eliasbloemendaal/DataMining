@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import datetime
+import holidays
 
 datetimes = []
 temperatures = []
@@ -17,9 +18,18 @@ with open('KNMI_20140609.txt', 'r') as f:
 			
 
 # print(datetimes)
-# print(temperatures)
+print(temperatures)
+dutch_holidays = holidays.CountryHoliday('NL')
 
 df = pd.DataFrame({'datetime':datetimes, 'temperature': temperatures})
 df['datetime'] = df['datetime'].apply(lambda t: datetime.strptime(t, '%Y%m%d'))
+df['week_day'] = df.datetime.apply(lambda dt: dt.weekday())
+df['holiday'] = df.datetime.apply(lambda dt: dt in dutch_holidays)
 
-df.to_csv('daily_temperatures.csv')
+df = pd.get_dummies(df, columns = ['week_day'])
+
+
+
+
+
+df.to_csv('extra_data.csv')
