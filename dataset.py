@@ -28,6 +28,7 @@ class User:
         #takes a time series of a variable as input
         score_variables = ['mood', 'circumplex.arousal', 'circumplex.valence', 'activity']
         binary_variables = ['call', 'sms']
+        other_variables = ['']
         #all other variables are duration variables
         if variable.name in score_variables:
             return self._aggregate_score_variable(variable)

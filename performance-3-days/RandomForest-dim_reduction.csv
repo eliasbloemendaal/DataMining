@@ -1,0 +1,7 @@
+,dimensions,model,mse,parameters,reduction technique
+0,10,RandomForest,0.31329247680059896,"{'bootstrap': True, 'min_samples_split': 2, 'max_depth': 3, 'criterion': 'mse', 'max_features': 10, 'min_samples_leaf': 10}",pca_reduce
+1,10,RandomForest,0.32775850964568587,"{'bootstrap': True, 'min_samples_split': 3, 'max_depth': 3, 'criterion': 'mse', 'max_features': 'auto', 'min_samples_leaf': 10}",isomap_reduce
+2,20,RandomForest,0.3088866073536402,"{'bootstrap': True, 'min_samples_split': 2, 'max_depth': 3, 'criterion': 'mse', 'max_features': 'auto', 'min_samples_leaf': 3}",pca_reduce
+3,20,RandomForest,0.30563416574403623,"{'bootstrap': True, 'min_samples_split': 2, 'max_depth': 3, 'criterion': 'mse', 'max_features': 'auto', 'min_samples_leaf': 10}",isomap_reduce
+4,30,RandomForest,0.301689334764507,"{'bootstrap': True, 'min_samples_split': 3, 'max_depth': None, 'criterion': 'mse', 'max_features': 10, 'min_samples_leaf': 10}",pca_reduce
+5,30,RandomForest,0.2954859667396009,"{'bootstrap': True, 'min_samples_split': 3, 'max_depth': 3, 'criterion': 'mse', 'max_features': 10, 'min_samples_leaf': 3}",isomap_reduce

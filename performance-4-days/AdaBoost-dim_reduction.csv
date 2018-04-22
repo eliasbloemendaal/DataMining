@@ -1,0 +1,7 @@
+,dimensions,model,mse,parameters,reduction technique
+0,10,AdaBoost,0.2806677305547125,"{'learning_rate': 0.1, 'loss': 'exponential', 'n_estimators': 50}",pca_reduce
+1,10,AdaBoost,0.265580040501153,"{'learning_rate': 0.01, 'loss': 'square', 'n_estimators': 100}",isomap_reduce
+2,20,AdaBoost,0.2577450736679975,"{'learning_rate': 0.001, 'loss': 'exponential', 'n_estimators': 50}",pca_reduce
+3,20,AdaBoost,0.30245189778245624,"{'learning_rate': 0.001, 'loss': 'linear', 'n_estimators': 300}",isomap_reduce
+4,30,AdaBoost,0.263551187825635,"{'learning_rate': 0.1, 'loss': 'exponential', 'n_estimators': 10}",pca_reduce
+5,30,AdaBoost,0.3112593328121067,"{'learning_rate': 0.01, 'loss': 'linear', 'n_estimators': 50}",isomap_reduce
