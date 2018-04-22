@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from model import lstm
 
 class Individual:
 
@@ -14,10 +15,18 @@ class Individual:
 				else:
 					self.genotype[i] = 0
 
-	def evaluate(self):
+	def evaluate(self, lstm):
 		# run model with parameter settings
+		mse = lstm.run_on_genotype(self.genotype)
 
-		self.fitness = np.sum(self.genotype)
+		mean_mse = np.mean(np.array(mse))
+
+		# mean_mse = np.sum(self.genotype)
+
+
+
+		self.fitness = 1 / (self.eps + mean_mse)
+		# self.fitness = np.sum(self.genotype)
 
 
 	def set_genotype(self, genotype):
@@ -29,6 +38,7 @@ class Individual:
 		self.genotype = np.random.randint(2, size=self.n)
 		self.fitness = None
 		self.prob_mutate = 0.01
+		self.eps = 0.01
 
 
 class GeneticAlgorithm:
@@ -36,7 +46,7 @@ class GeneticAlgorithm:
 	def mutation(self, children):
 		for i in range(len(children)):
 			children[i].mutate()
-			children[i].evaluate()
+			children[i].evaluate(self.lstm)
 
 		return children
 
@@ -61,6 +71,7 @@ class GeneticAlgorithm:
 
 	def recombination(self, parents):
 		children = []
+		# print(parents)
 		if len(parents) % 2 != 0:
 			raise Exception('Nr of parents should be even')
 
@@ -79,6 +90,8 @@ class GeneticAlgorithm:
 	def parent_selection(self):
 		# fitness proportate selection using Stochastic Universal Sampling (SUS)
 		fitnesses = [g.fitness for g in self.population]
+		print(len(fitnesses))
+		a = [sum(fitnesses[:i+1])/sum(fitnesses) for i in range(len(fitnesses))]
 		i = 0
 		current = 0
 		r = np.random.uniform(0, 1/self.lmbda)
@@ -86,13 +99,16 @@ class GeneticAlgorithm:
 		parents = []
 
 		while current < self.lmbda:
-			while r <= fitnesses[i]:
+			while r < a[i]:
+				print(len(parents))
 				parents.append(self.population[i])
 				r = r + 1/self.lmbda
+				print('r: {}'.format(r))
 				current += 1
 
 			i += 1
-
+			
+		print(len(parents))
 		return parents
 
 
@@ -107,9 +123,9 @@ class GeneticAlgorithm:
 
 		self.population.sort(key=lambda x: x.fitness, reverse=True)
 
-		# update fitness
-		for individual in self.population:
-			individual.evaluate()
+		# # update fitness
+		# for individual in self.population:
+		# 	individual.evaluate(self.lstm)
 
 
 		# return best 50 from population
@@ -117,16 +133,10 @@ class GeneticAlgorithm:
 		
 
 	def evolutionary_cycle(self):
-		# parent selection
-		for individual in self.population:
-			individual.evaluate()
-
 		parents = self.parent_selection()
 
 		# recombination
 		children = self.recombination(parents)
-
-
 
 		# mutation
 		children = self.mutation(children)
@@ -135,6 +145,11 @@ class GeneticAlgorithm:
 		self.survivor_selection(children)
 
 		self.update_best_individual()
+
+		with open('results.txt', 'a') as f:
+			fitnesses = [i.fitness for i in self.population]
+			line = (str(fitnesses) + '\n').replace('[', '').replace(']', '')
+			f.write(line)
 
 
 
@@ -146,6 +161,7 @@ class GeneticAlgorithm:
 
 		for i in range(self.mu):
 			genotype = Individual(self.n)
+			genotype.evaluate(self.lstm)
 			population.append(genotype)
 
 		return population
@@ -161,13 +177,15 @@ class GeneticAlgorithm:
 
 
 	def __init__(self):
-		self.mu = 100
-		self.lmbda = 20
-		self.num_gen = 20
-		self.n = 18
+		self.mu = 4
+		self.lmbda = 4
+		self.num_gen = 3
+		self.n = 44
+		self.lstm = lstm()
 		self.population = self.init_population()
 		self.fitnesses = []
 		self.best_genotype = None
+		
 
 		for i in range(self.num_gen):
 			print('generation {}'.format(i))
@@ -175,10 +193,10 @@ class GeneticAlgorithm:
 
 			self.fitnesses.append(self.population[0].fitness)
 
+
 		print(self.best_genotype)
 		plt.plot(self.fitnesses)
 		plt.show()
-
 
 
 GeneticAlgorithm()
