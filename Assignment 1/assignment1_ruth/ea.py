@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from model import lstm
+import time
 
 class Individual:
 
@@ -15,18 +16,13 @@ class Individual:
 				else:
 					self.genotype[i] = 0
 
+
 	def evaluate(self, lstm):
 		# run model with parameter settings
 		mse = lstm.run_on_genotype(self.genotype)
-
 		mean_mse = np.mean(np.array(mse))
 
-		# mean_mse = np.sum(self.genotype)
-
-
-
 		self.fitness = 1 / (self.eps + mean_mse)
-		# self.fitness = np.sum(self.genotype)
 
 
 	def set_genotype(self, genotype):
@@ -37,7 +33,7 @@ class Individual:
 		self.n = size
 		self.genotype = np.random.randint(2, size=self.n)
 		self.fitness = None
-		self.prob_mutate = 0.01
+		self.prob_mutate = 0.1
 		self.eps = 0.01
 
 
@@ -148,7 +144,7 @@ class GeneticAlgorithm:
 
 		with open('results.txt', 'a') as f:
 			fitnesses = [i.fitness for i in self.population]
-			line = (str(fitnesses) + '\n').replace('[', '').replace(']', '')
+			line = (str(fitnesses) + ', ' + str(time.ctime()) + '\n').replace('[', '').replace(']', '')
 			f.write(line)
 
 
@@ -177,9 +173,9 @@ class GeneticAlgorithm:
 
 
 	def __init__(self):
-		self.mu = 4
-		self.lmbda = 4
-		self.num_gen = 3
+		self.mu = 10
+		self.lmbda = 6
+		self.num_gen = 10
 		self.n = 44
 		self.lstm = lstm()
 		self.population = self.init_population()
