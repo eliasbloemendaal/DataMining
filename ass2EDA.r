@@ -2,6 +2,7 @@ library(ggplot2)
 library(reshape2)
 library(plyr)
 library(dplyr)
+library(lubridate)
 
 
 #data <- read.csv(file='C:\\Users\nvanderheijden\\Desktop\\Data Mining Techniques\\Assignment 2\\Data Mining VU data\\Data Mining VU datatraining_set_VU_DM_2014.csv', header = TRUE, sep=',')
@@ -54,9 +55,6 @@ mysample$date_time <- as.Date(mysample$date_time)
 
 
 
-# Process NAs
-  # Owen Zhang: impute with a negative value -> after all other cleaning steps to prevent interference
-mysample[is.na(mysample)] <- -1
 
   # Jun Wang: Hotel description -> fill missing value with worst case scenario
   #           User data -> highlight matching or mismatching between historical data -> feature engineering
@@ -106,10 +104,6 @@ prop_id_sum <- summarize(by_prop_id, avg_prop_starrating = mean(prop_starrating)
                           )
 
 
-# Group by srch_destination_id and compare quality of hotels
-by_srch_des_id <- group_by(mysample, srch_destination_id)
-
-#srch_des_sum <- summarize(by_srch_des_id, )
 
 #####################################
 # Merge data back in
@@ -117,6 +111,12 @@ by_srch_des_id <- group_by(mysample, srch_destination_id)
 
 mysample <- merge(x = mysample, y = srch_id_sum, by = "srch_id", all.x = TRUE)
 mysample <- merge(x = mysample, y = prop_id_sum, by = "prop_id", all.x = TRUE)
+
+####################################
+# Date splitting
+####################################
+mysample$day <- weekdays(mysample$date_time)
+mysample$month <- month(mysample$date_time)
 
 
 
@@ -126,7 +126,7 @@ mysample <- merge(x = mysample, y = prop_id_sum, by = "prop_id", all.x = TRUE)
 # EXP features: categorical features converted into numerical features (Owen Zhang)
 get_exp_train <- function(df, col, target){
   #FUNCTION TO BE USED ON TRAIN DATA
-  
+  print(col)
   # arrange df on col
   arrange(df, df[col])
   overal_avg <- mean(df[,target])
@@ -144,7 +144,7 @@ get_exp_train <- function(df, col, target){
     target_mean <- mean(filtered_df[,target])
     # loop over all rows within filtered df and calculate exp
     for (row in 1:total_obs){
-      special_mean = (total_obs * target_mean - filtered_df[row,col]) / (total_obs - 1)
+      special_mean = (total_obs * target_mean - filtered_df[row,target]) / (total_obs - 1)
       row_exp = weighted.mean(c(special_mean, target_mean), c(total_obs-1, total_obs))
       col_exp[original_row_nr] <- row_exp
       original_row_nr <- original_row_nr + 1
@@ -158,71 +158,81 @@ get_exp_train <- function(df, col, target){
   
 }
 
-get_exp_test <- function(train, test_set, col, target){
+
+
+get_exp_test <- function(train, test, col, target){
   #Function to get the exp features for a test set, based on the train set
-  # TO BE TESTED
-  by_col <- group_by(train, col)
-  train_target_summary <- summarize(by_col, paste(c(col,'exp'), collapse = '_') = mean(target))
-  test_set <- merge(x=test_set, y = train_target_summary, by = col, all.x=TRUE)
+  by_col <- group_by_(train, col)
+  train_target_summary <- summarize(by_col, testcolumn = mean(position))
+  
+  name <- paste(col, 'exp', sep = '_')
+  names(train_target_summary)[names(train_target_summary) == "testcolumn"] <- name
+  test_set <- merge(x=test, y = train_target_summary, by = col, all.x=TRUE)
   return(test_set)
-  }
+}
   
 target = 'position'
 cols_to_get_exp <- c('site_id', 'visitor_location_country_id', 'prop_country_id','prop_id', 'prop_starrating',
-                     'prop_review_score', 'srch_destination_id', 'srch_length_of_stay', 'srch_adults_count', 'srch_room_count')
+                     'prop_review_score', 'srch_destination_id', 'srch_length_of_stay', 'srch_adults_count', 'srch_room_count', 'day', 'month')
 #TODO: discuss whether to include ordinal variables in cols_to_get_exp
+
+#mysample <- get_exp_train(mysample, 'day', target)
 
 #Get all expectation features
 for (col in cols_to_get_exp){
   mysample <- get_exp_train(mysample, col, target)
 }
 
-# TEST
-my_sample <- get_exp_test(mysample, my_sample, 'site_id', 'position')
+# TEST SET ONLY
 
+#for (col in cols_to_get_exp){
+#  mysample <- get_exp_test(train, test, target)
+#}
 
+######################################################################
 # Estimated position: position of the same hotel in the same destination in the previous and next search (Owen Zhang)
+######################################################################
 
 get_estimated_pos <- function(df, search_line) {
   #Get time difference between searches
-  df$time_diff <- as.numeric(df$date_time - search_line$date_time)
+  df$time_diff <- as.numeric(difftime(df$date_time, search_line$date_time,unit='days'))
   
   #filter df for location and hotel
-  df <- df[(df$prop_id == search_line$prop_id) && (df$srch_destination_id == search_line$srch_destination_id)]
-  earlier = df[df['time_diff'] < 0,]
-  later <- df[df['time_diff'] > 0,]
+  same_prop <- filter(df, df$prop_id == search_line$prop_id)
+  filtered <- filter(same_prop, same_prop$srch_destination_id == search_line$srch_destination_id)
   
-  closest_before = df[which(earlier['time_diff'] == max(earlier['time_diff'])),]
-  closest_after = df[which(later['time_diff'] == min(later['time_diff'])),]
   
-  closest = c(closest_before, closest_after)
-  result <- mean(closest$position)
+  earlier <- filtered[filtered$time_diff < 0,]
+  later <- filtered[filtered$time_diff > 0,]
+  
+  
+  closest_before <- earlier[which.max(earlier$time_diff),]
+  closest_after <- later[which.min(later$time_diff),]
+  
+  result <- mean(c(closest_before$position, closest_after$after))
+  
+  #drop time_diff coll
+  df$time_diff <- NULL
+  
   return(result)
 }
   
-#Get expected position for each srch
-mysample$pos_exp1 <- apply(mysample,1,function(x) get_estimated_pos(mysample, x))
-
 
 pos_exp <- numeric(nrow(mysample))
 for (i in 1:nrow(mysample)){
-  #print(is.recursive(mysample[i,]))
-  #print(mysample[i,])
-  print(i)
-  print(mysample[i,][c('date_time', 'srch_id', 'srch_destination_id')])
-  pos_exp[i] <- get_estimated_pos(mysample, mysample[i,])
+  pos_exp[i] <- get_estimated_pos(mysample[c('srch_id','date_time','position', 'srch_destination_id','prop_id')], mysample[i,][c('srch_id','date_time','position', 'srch_destination_id','prop_id')])
 }
 
 mysample$pos_exp <- pos_exp
 # Create features to represent matching or mismatching between historical data and given hotel data
   # E.g. price_diff, stars_diff
-mutate(mysample, price_diff = abs(avg_hist_adr_usd.y-price_usd),
-                stars_diff = abs(avg_hist_starrating.y - prop_starrating)
+mysample <- mutate(mysample, price_diff = abs(avg_hist_adr_usd-price_usd),
+                stars_diff = abs(avg_hist_starrating - prop_starrating)
        
        )
 
 # Hotel quality: probability of booking + probability of clicking -> done
-# Non-Monoticity of Feature Utility: transform features (Jun Wang)
+# Non-Monoticity of Feature Utility: transform features (Jun Wang) -> done
 # Add features for each prop_id: mean, std and median of numeric values --> done
 
 
@@ -234,8 +244,51 @@ mutate(mysample, price_diff = abs(avg_hist_adr_usd.y-price_usd),
 # Normalize hotel and competitor descriptions with respect to different indicators
   # srch_id, prop_id, srch_booking_window, srch_destination_id, prop_country_id
 
-####################################
+to_normalize <- c('price_usd', 'prop_starrating', 'prop_location_score1', 'prop_location_score1','prop_review_score', 'prop_log_historical_price')
+normalize_by <- c('srch_id', 'prop_country_id', 'prop_id')
+
+for (feature in to_normalize){
+  for (by in normalize_by){
+    
+    feature_name <- paste(feature, by, sep='_norm_by_')
+    mysample[feature_name] <- ave(mysample[feature], mysample[by], FUN = function(x) x /max(x))
+  }
+}
+
+#####################################
+# Aggregate competitors
+#####################################
+mysample$comp_rate <- rowSums(mysample[c('comp1_rate','comp2_rate' ,'comp3_rate','comp4_rate','comp5_rate','comp6_rate','comp7_rate','comp8_rate')], na.rm=TRUE)
+mysample$comp_inv <- rowSums(mysample[c('comp1_inv','comp2_inv' ,'comp3_inv','comp4_inv','comp5_inv','comp6_inv','comp7_inv','comp8_inv')], na.rm=TRUE)
+mysample$comp_rate_percent_diff <- rowMeans(mysample[c('comp1_rate_percent_diff','comp2_rate_percent_diff' ,'comp3_rate_percent_diff','comp4_rate_percent_diff','comp5_rate_percent_diff','comp6_rate_percent_diff','comp7_rate_percent_diff','comp8_rate_percent_diff')], na.rm=TRUE)
+
+#####################################
+# Process NAs
+#####################################
+# Owen Zhang: impute with a negative value
+mysample[is.na(mysample)] <- -1
+
+
+#####################################
 # Downsample negative values
-####################################
+#####################################
 # Only for train set
 #(Owen Zhang) --> rows without booking or click
+
+total_non_booked_clicked <- subset(mysample, click_bool == 0 & booking_bool == 0)
+nr_negative <- nrow(total_non_booked_clicked)
+ratio_pos <- (nrow(mysample)-nr_negative)/nrow(mysample) # 0.0431
+
+desired_ratio <- 0.1 # 1 : 10
+drop_prob <- 1 - (ratio_pos / desired_ratio)
+
+reduced_non_booked_clicked <- sample_frac(total_non_booked_clicked, 1-drop_prob)
+
+train_set <- rbind(reduced_non_booked_clicked, subset(mysample, click_bool == 1 | booking_bool == 1))
+
+#####################################
+# Write to csv
+#####################################
+
+write.csv(file='DMT_train.csv',x=train_set)
+
