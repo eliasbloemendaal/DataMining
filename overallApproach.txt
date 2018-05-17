@@ -1,0 +1,43 @@
+
+How to handle outliers in price usd + comp rate difference
+	-> Include all different forms of pre-processing and let genetic algorithm choose?
+	-> price_usd outliers: top off maximum at max gross_price_usd. Add a flag indicating price_usd < 5 since probably discount has been given
+
+nDCG -> which formula to use?
+
+Model creation approach
+	* Engineer all features
+		- Dates to day and month OHE
+		- Summary per srch_id, prop_id
+		- For all categorical/ordinal features compute weighted average of overall E[position], E[current class without current obs]
+		- Estimated position of the hotel based on same hotel in same dest in prev and next search
+		- Normalized features
+			for price_usd, prop_starrating,  srch_id, prop_country_id, prop_location_scores, prop_review_score and prop_log_historical price
+			by srch_id, prop_country_id, and month
+			-> x / max(x) within each group
+		- Competitor aggregation
+			Sum over all comp_rates and comp_invs
+			Average over comp_rate_percent_diff
+		- Flag for prices below 5 dollar?
+	
+	* NA handling
+		After feature engineering, impute all NAs with -1 (Owen Zhang)
+			Other approaches?
+	
+	* Downsample negative values (not booked nor clicked)
+		Downsample rate? 1:10?
+		
+	
+	* Genetic algorithm
+		Optimize used features and hyperparameters for XGBoost ranking models, take top n ( = 50?) best performing model
+			Use subset of the data?
+			Is one fold of data enough in this stage?
+		Compare top n best models by means of cross validation (K = 30?) and compare performance statistically 
+			Paired t-test?   (wilcoxon signed) rank test?
+				Use binary tree for comparisons between models to save overhead
+			Take top m ( = 25) best performing models
+		Train top m models on total data set, predict test set using all models and average predictions
+		
+		
+		
+		

@@ -87,9 +87,12 @@ def parse_data(filepath, train_name='train', test_name='test'):
     #########################################
 
     cat_feats = ['visitor_location_country_id', 'prop_country_id', 'srch_destination_id']
+    print(len(df.columns))
 
-    for feat in cat_feats:
-        pd.get_dummies(df[feat], prefix=feat)
+    # for feat in cat_feats:
+    #     df = pd.concat([df, pd.get_dummies(df[feat], prefix=feat)], axis=1)
+
+    print(len(df.columns))
 
     
 
