@@ -1,9 +1,10 @@
 import xgboost as xgb
 import os
+import pandas as pd
 os.environ['PATH'] = os.environ['PATH'] + ';C:\\Program Files\\mingw-w64\\x86_64-5.3.0-posix-seh-rt_v4-rev0\\mingw64\\bin'
 
 print('hier')
-dtrain = xgb.DMatrix('train.txt')
+dtrain = xgb.DMatrix('datasets/cv_train.txt')
 
 """
 Parameters optimization
@@ -41,17 +42,34 @@ nr_individuals = 100
 
 """
 
+def _get_dmatrix_ranking(df, groups, weights, column_indices, target='position'):
+    """
+        Df containing all data, groups and weights lists, column indices boolean list
+    """
+    # Set target and features
+    target = df[target]
+    feats = df.drop(target)
+    #slice features
+    feats = feats.iloc[:,column_indices]
+
+    #construct dmatrix and set weights, groups
+    dmatrix = xgb.DMatrix(feats.values, target.values)
+
+    dmatrix.set_group(groups)
+    dmatrix.set_weight(weights)
+
+    return dmatrix
+
+df = pd.read_csv()
+
 #TODO: eval metric NDCG + overview params to be optimized
 params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu'}
 """ Manually set eval_metric = [our ndcg function]  in params """
 
 num_round = 2
-bst = xgb.train(params, dtrain, num_round, eval = ndcg, watch_list = test_set, max_trees = 1000)
+bst = xgb.train(params, dtrain, num_round)
 
-preds = bst.predict(dtrain)
+preds = bst.eval(dtrain)
 print(preds)
 print(len(preds))
 
-
-while(True):
-    print('hoi')

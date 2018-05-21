@@ -1,4 +1,5 @@
 import pandas as pd
+import time
 
 
 """ df = pd.read_csv('DMT_train.csv', header = 0, index_col=0)
@@ -22,19 +23,20 @@ TODO:
 
 """
 
-def _get_libsvm(df, set_name):
+def _get_libsvm(df, set_name, train = True):
     """
         Writes a SORTED df to libsvm format
     """
-
-    with open(set_name+'.txt', 'w') as f:
+    t1 = time.time()
+    with open('datasets/'+set_name+'.txt', 'w') as f:
         # Get matrix shape and set range settings for iterating over rows
 
         for _, row in df.iterrows():
             #write label/rank value
             row_elements = []
-            row_elements.append(str(row.position))
-            row.drop('position')
+            if train:
+                row_elements.append(str(row.position))
+                row.drop('position', inplace = True)
             row = row.tolist()
             #get all nonzero values and their indices
             for index, val in enumerate(row):
@@ -45,13 +47,15 @@ def _get_libsvm(df, set_name):
             f.write(' '.join(row_elements))
             f.write('\n')
             # end with eol
+        print(df.shape)
+        print(time.time()-t1)
 
 def _get_group_input(df, set_name):
     """
         Creates a file describing the number of elements per group for a SORTED df
     """
     group_counts = df.groupby('srch_id')['prop_id'].count()
-    filename = '{}.txt.group'.format(set_name)
+    filename = 'datasets/{}.txt.group'.format(set_name)
 
     group_counts.to_csv(filename, header=None, index=None)
 
@@ -73,30 +77,32 @@ def _get_instance_weight(df, set_name):
     """
 
     weights = df.apply(_get_weight, axis=1)
-    filename = '{}.txt.weight'.format(set_name)
+    filename = 'datasets/{}.txt.weight'.format(set_name)
 
     weights.to_csv(filename, index=None, header=None)
 
+def _prep_train(df):
+    # Bound outliers
 
-def parse_data(filepath, train_name='train', test_name='test'):
-    df = pd.read_csv('DMT_train.csv', header = 0, index_col=0)
-    #print(df.head())
+    # Downsample negative values
+    nr_srch_ids = len(df.srch_id.unique())
+    srch_id_sum = df.groupby('srch_id')['booking_bool', 'click_bool'].sum().reset_index()
+    print(srch_id_sum)
 
-    #########################################
-    # Get dummy variables
-    #########################################
+    non_booked_clicked = srch_id_sum[(srch_id_sum.booking_bool == 0) & (srch_id_sum.click_bool == 0)]
+    nr_negative = non_booked_clicked.shape[0]
 
-    cat_feats = ['visitor_location_country_id', 'prop_country_id', 'srch_destination_id']
-    print(len(df.columns))
+    ratio_pos = (nr_srch_ids-nr_negative)/nr_srch_ids
+    desired_ratio = 0.15
+    print('RATIO positive values: {}'.format(ratio_pos))
+    keep_prob = ratio_pos / desired_ratio
+    reduced_non_booked_clicked = non_booked_clicked.sample(frac=keep_prob, random_state = 42)
 
-    # for feat in cat_feats:
-    #     df = pd.concat([df, pd.get_dummies(df[feat], prefix=feat)], axis=1)
+    result = df[df.srch_id.isin(reduced_non_booked_clicked.srch_id.tolist())]
 
-    print(len(df.columns))
+    return result
 
-    
-
-
+def _prep_files(df, name, train=True):
     #########################################
     # Sort data on position for group input format file
     #########################################
@@ -107,20 +113,60 @@ def parse_data(filepath, train_name='train', test_name='test'):
     #########################################
     # Get group information
     #########################################
-    _get_group_input(df, 'train')
-    _get_instance_weight(df, 'train')
+    _get_group_input(df, name)
+    _get_instance_weight(df, name)
 
     #########################################
     # Remove unnecessary variables
     #########################################
     print(len(df.srch_id.unique()))
 
+    print(df.columns)
     df = df.drop(columns = ['srch_id', 'prop_id', 'date_time', 'min_date', 'max_date', 'day'])
+    if train:
+        df = df.drop(columns = ['booking_bool', 'click_bool', 'gross_bookings_usd'])
 
     #########################################
     # Get instance information in libsvm format
     #########################################
-    _get_libsvm(df, 'train')
+    _get_libsvm(df, name)
+
+def parse_data(filepath, train_name='train', test_name='test'):
+    df = pd.read_csv('DMT_train.csv', header = 0, index_col=0)
+    #print(df.head())
+
+    #########################################
+    # create subsets
+    #########################################
+
+    unique_ids = pd.Series(df.srch_id.unique())
+
+    # final train set (all data)
+    final_train = _prep_train(df)
+
+    # cv train set (80 %)
+    cv_train_ids = unique_ids.sample(frac=0.8, random_state = 42)
+    cv_train = df[df.srch_id.isin(cv_train_ids.tolist())]
+    cv_train = _prep_train(cv_train)
+
+    # test set (20 %)
+    test_set = df[~df.srch_id.isin(cv_train_ids.tolist())]
+    
+
+    # GA train set (64 %)
+    GA_train_ids = cv_train_ids.sample(frac=0.8, random_state = 42)
+    GA_train = df[df.srch_id.isin(GA_train_ids.tolist())]
+    GA_train = _prep_train(GA_train)
+
+    # GA validation set ( 16%)
+    GA_valid = df[~df.srch_id.isin(GA_train_ids)]
+
+    ###########################################
+    # Prep files
+    ###########################################
+    for dataset in [(final_train, 'final_train'), (cv_train, 'cv_train'), (test_set, 'test_set'), (GA_train, 'GA_train'), (GA_valid, 'GA_valid')]:
+        _prep_files(dataset[0], dataset[1])
+        dataset[0].to_csv('datasets/'+dataset[1]+'.csv', index = None )
 
 
 
