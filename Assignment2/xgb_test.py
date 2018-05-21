@@ -1,6 +1,7 @@
 import xgboost as xgb
 import os
 import pandas as pd
+from random import *
 os.environ['PATH'] = os.environ['PATH'] + ';C:\\Program Files\\mingw-w64\\x86_64-5.3.0-posix-seh-rt_v4-rev0\\mingw64\\bin'
 
 print('hier')
@@ -60,16 +61,36 @@ def _get_dmatrix_ranking(df, groups, weights, column_indices, target='position')
 
     return dmatrix
 
-df = pd.read_csv()
+
+###########################################################
+# Dynamic DMatrix creation example
+###########################################################
+df = pd.read_csv('datasets/GA_train.csv', header = 0)
+with open('datasets/GA_train.txt.weight', 'r') as f:
+    weight = list(map(int, f.read().split()))
+
+with open('datasets/GA_train.txt.group', 'r') as f:
+    groups = list(map(int,f.read().split()))
+
+randBinList = lambda n: [randint(0,1) for b in range(1,n+1)]
+#cols = randBinList(len(df.columns))
+cols = [bool(x) for x in randBinList(len(df.columns))]
+print(cols)
+
+dm = _get_dmatrix_ranking(df, groups, weight, cols)
+print(dm.num_col())
+
+############################################################
+############################################################
 
 #TODO: eval metric NDCG + overview params to be optimized
-params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu'}
+params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu', 'eval_metric':'ndcg'}
 """ Manually set eval_metric = [our ndcg function]  in params """
 
 num_round = 2
 bst = xgb.train(params, dtrain, num_round)
 
-preds = bst.eval(dtrain)
+preds = bst.predict(dtrain)
 print(preds)
 print(len(preds))
 

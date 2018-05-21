@@ -130,6 +130,7 @@ def _prep_files(df, name, train=True):
     # Get instance information in libsvm format
     #########################################
     _get_libsvm(df, name)
+    return df
 
 def parse_data(filepath, train_name='train', test_name='test'):
     df = pd.read_csv('DMT_train.csv', header = 0, index_col=0)
@@ -165,8 +166,8 @@ def parse_data(filepath, train_name='train', test_name='test'):
     # Prep files
     ###########################################
     for dataset in [(final_train, 'final_train'), (cv_train, 'cv_train'), (test_set, 'test_set'), (GA_train, 'GA_train'), (GA_valid, 'GA_valid')]:
-        _prep_files(dataset[0], dataset[1])
-        dataset[0].to_csv('datasets/'+dataset[1]+'.csv', index = None )
+        result = _prep_files(dataset[0], dataset[1])
+        result.to_csv('datasets/'+dataset[1]+'.csv', index = None )
 
 
 
