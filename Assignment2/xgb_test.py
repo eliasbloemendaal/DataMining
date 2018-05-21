@@ -33,6 +33,12 @@ colsampel, float, (0.5, 1], 7
 Total length of bit string: 
 35 (parameters) + 117 (? features) = 152 bits
 
+
+nr_gen = 20
+nr_individuals = 100
+
+60s * 200 * 20 = 
+
 """
 
 #TODO: eval metric NDCG + overview params to be optimized
@@ -40,7 +46,7 @@ params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree
 """ Manually set eval_metric = [our ndcg function]  in params """
 
 num_round = 2
-bst = xgb.train(param, dtrain, num_round)
+bst = xgb.train(params, dtrain, num_round, eval = ndcg, watch_list = test_set, max_trees = 1000)
 
 preds = bst.predict(dtrain)
 print(preds)
