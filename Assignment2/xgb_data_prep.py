@@ -78,6 +78,7 @@ def _get_instance_weight(df, set_name):
 
     weights = df.apply(_get_weight, axis=1)
     filename = 'datasets/{}.txt.weight'.format(set_name)
+    print('set {}, sum weights: {}'.format(set_name, sum(weights.values)))
 
     weights.to_csv(filename, index=None, header=None)
 
@@ -87,18 +88,20 @@ def _prep_train(df):
     # Downsample negative values
     nr_srch_ids = len(df.srch_id.unique())
     srch_id_sum = df.groupby('srch_id')['booking_bool', 'click_bool'].sum().reset_index()
+    print('hier')
     print(srch_id_sum)
 
     non_booked_clicked = srch_id_sum[(srch_id_sum.booking_bool == 0) & (srch_id_sum.click_bool == 0)]
     nr_negative = non_booked_clicked.shape[0]
-
+    print('#negative:{}'.format(nr_negative))
+    print('#positive:{}'.format(srch_id_sum.shape[0]-nr_negative))
     ratio_pos = (nr_srch_ids-nr_negative)/nr_srch_ids
     desired_ratio = 0.15
     print('RATIO positive values: {}'.format(ratio_pos))
     keep_prob = ratio_pos / desired_ratio
     reduced_non_booked_clicked = non_booked_clicked.sample(frac=keep_prob, random_state = 42)
 
-    result = df[df.srch_id.isin(reduced_non_booked_clicked.srch_id.tolist())]
+    result = pd.concat([df[df.srch_id.isin(reduced_non_booked_clicked.srch_id.tolist())],df[~df.srch_id.isin(non_booked_clicked.srch_id.tolist())]])
 
     return result
 
@@ -119,9 +122,7 @@ def _prep_files(df, name, train=True):
     #########################################
     # Remove unnecessary variables
     #########################################
-    print(len(df.srch_id.unique()))
 
-    print(df.columns)
     df = df.drop(columns = ['srch_id', 'prop_id', 'date_time', 'min_date', 'max_date', 'day'])
     if train:
         df = df.drop(columns = ['booking_bool', 'click_bool', 'gross_bookings_usd'])

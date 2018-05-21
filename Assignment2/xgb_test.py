@@ -48,47 +48,62 @@ def _get_dmatrix_ranking(df, groups, weights, column_indices, target='position')
         Df containing all data, groups and weights lists, column indices boolean list
     """
     # Set target and features
-    target = df[target]
-    feats = df.drop(target)
+    response = df[target]
+    feats = df.drop(columns=target)
     #slice features
     feats = feats.iloc[:,column_indices]
 
     #construct dmatrix and set weights, groups
-    dmatrix = xgb.DMatrix(feats.values, target.values)
+    dmatrix = xgb.DMatrix(feats.values, response.values)
 
     dmatrix.set_group(groups)
     dmatrix.set_weight(weights)
 
+
     return dmatrix
+
+def get_DMatrix_data(filepath):
+    df = pd.read_csv(filepath+'.csv', header = 0)
+    with open(filepath+'.txt.weight', 'r') as f:
+        weight = list(map(int, f.read().split()))
+
+    with open(filepath+'.txt.group', 'r') as f:
+        groups = list(map(int,f.read().split()))
+
+    return (df, weight, groups)
+
+def get_DMatrix_from_data(df, weight, groups, cols):
+
+    return _get_dmatrix_ranking(df, groups, weight, cols)
+
+def parse_predictions(df,preds):
+    df['score'] = preds
+    #df.sort([''])
+
 
 
 ###########################################################
 # Dynamic DMatrix creation example
-###########################################################
-df = pd.read_csv('datasets/GA_train.csv', header = 0)
-with open('datasets/GA_train.txt.weight', 'r') as f:
-    weight = list(map(int, f.read().split()))
-
-with open('datasets/GA_train.txt.group', 'r') as f:
-    groups = list(map(int,f.read().split()))
-
+##########################################################
 randBinList = lambda n: [randint(0,1) for b in range(1,n+1)]
-#cols = randBinList(len(df.columns))
-cols = [bool(x) for x in randBinList(len(df.columns))]
-print(cols)
+# cols should be converted from binary string
+cols = [bool(x) for x in randBinList(108)]
 
-dm = _get_dmatrix_ranking(df, groups, weight, cols)
-print(dm.num_col())
+train_df, train_weight, train_groups = get_DMatrix_data('datasets/final_train')
+valid_df, valid_weight, valid_groups = get_DMatrix_data('datasets/test_set')
+
+# Every GA iteration, only cols has to be altered
+dtrain = get_DMatrix_from_data(train_df, train_weight, train_groups, cols)
+dvalid = get_DMatrix_from_data(valid_df, valid_weight, valid_groups, cols)
 
 ############################################################
 ############################################################
-
-#TODO: eval metric NDCG + overview params to be optimized
-params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu', 'eval_metric':'ndcg'}
-""" Manually set eval_metric = [our ndcg function]  in params """
+#Set eval list
+evallist = [(dtrain, 'train'), (dvalid, 'eval')]
+params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu','eval_metric':'ndcg@38-', 'seed':42, 'nthread':12}
 
 num_round = 2
-bst = xgb.train(params, dtrain, num_round)
+bst = xgb.train(params, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
 
 preds = bst.predict(dtrain)
 print(preds)
