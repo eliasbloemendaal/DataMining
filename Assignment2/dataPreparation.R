@@ -31,10 +31,45 @@ findOutliers = function(x, variable, factor){
   upperTreshold = (iqr * factor) + upperq
   lowerTreshold = lowerq - (iqr * factor)
   result <- x[x[,variable]>upperTreshold | x[,variable]<lowerTreshold, ]
-  print(lowerTreshold[1])
-  print(upperTreshold[1])
   return(result)
 }
+
+#Function findOutliers2:
+#Same as findOutliers but also returns upper and lower tresholds
+findOutliers2 = function(x, variable, factor){
+  lowerq = quantile(x[,variable])[2]
+  upperq = quantile(x[,variable])[4]
+  iqr = upperq - lowerq 
+  upperTreshold = (iqr * factor) + upperq
+  lowerTreshold = lowerq - (iqr * factor)
+  result <- x[x[,variable]>upperTreshold | x[,variable]<lowerTreshold, ]
+  return(list(result, lowerTreshold, upperTreshold))
+}
+
+#Function findOutliersPerCountry
+#For each country in a datarame the outliers are calculated using findOutliers2. The results are returned in a dataframe. 
+findOutliersPerCountry = function(d, variable, factor){
+  m = matrix(0, length(order(unique(d$prop_country_id))), 5)
+  colnames(m) =  c( "Lower Tresh.","Upper Tresh.", "Number of outiers", "Rows country", "Percentage outliers")
+  row.names(m) = unique(d$prop_country_id)
+  i = 1
+  for (country in unique(d$prop_country_id)){
+    d2 = d[d$prop_country_id == country,]
+    outlierResults = findOutliers2(d2, variable, factor)
+    numberOutliers = nrow(as.data.frame(outlierResults[1]))
+    m[i, 1] =  unname(outlierResults[[2]])
+    m[i, 2] =  unname(outlierResults[[3]])
+    m[i, 3] =  numberOutliers
+    m[i, 4] =  nrow(d2)
+    m[i, 5] =  numberOutliers/nrow(d2) *100
+    i = i+1
+  }
+  stats = as.data.frame(round(m, digits = 2))
+  return(stats)
+}
+
+outliersPC = findOutliersPerCountry(df, 'price_usd', 1.5)
+sum(outliersPC$`Number of outiers`)
 
 #Function removeOutlierSearches
 #Remove all searchIds that contain outliers as marked by 'findOutliers'
@@ -88,6 +123,17 @@ df4 = setOutliersValue(df, 'price_usd', 1.5, -1)
 df5 = removeOutlierSearches(df, 'comp1_ratepercent_diff', 1.5)
 df6 = removeOutlierRows(df, 'comp1_ratepercent_diff', 1.5)
 df7 = setOutliersNa(df, 'comp1_ratepercent_diff', 1.5)
+
+#Outliers 
+totalOutliers = findOutliers(df, 'price_usd', 1.5)
+nrow(totalOutliers)
+length(unique(totalOutliers$srch_id))
+
+#Outliers per country
+outliersPC = findOutliersPerCountry(df, 'price_usd', 1.5)
+sum(outliersPC$`Number of outiers`)
+
+
 
 
 
