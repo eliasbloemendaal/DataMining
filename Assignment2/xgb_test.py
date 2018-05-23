@@ -102,10 +102,14 @@ dvalid = get_DMatrix_from_data(valid_df, valid_weight, valid_groups, cols)
 evallist = [(dtrain, 'train'), (dvalid, 'eval')]
 params = {'max_depth':2, 'eta':1, 'silent':1, 'objective':'rank:pairwise' ,'tree_method':'gpu_hist', 'updater':'grow_gpu','eval_metric':'ndcg@38-', 'seed':42, 'nthread':12}
 
-num_round = 2
+num_round = 10000
 bst = xgb.train(params, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
+#Best NDCG score on valid set
+best_score = bst.best_score
+# ^ its respective prediction
+pbest_pred = bst.best_iteration
 
 preds = bst.predict(dtrain)
 print(preds)
-print(len(preds))
+#print(len(preds))
 
