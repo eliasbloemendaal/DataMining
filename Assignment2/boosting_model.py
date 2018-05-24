@@ -53,6 +53,21 @@ class BoostingModel:
 
 		return eta, gamma, max_depth, min_child_weight, subsample, colsample
 
+	def predict(self, model, dmatrix, df, weights):
+
+		df['pred_score'] = model.predict(dmatrix) #predict returns list of scores per row
+
+		result = df[['srch_id','prop_id', 'pred_score']]
+		result['weight'] = weights
+
+		
+		result = result.sort_values(by=['srch_id', 'pred_score'], ascending=False, kind='heapsort')
+
+		return result
+
+
+
+
 	def run_on_genotype(self, genotype):
 		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
 		features = self.get_features(genotype)
@@ -68,7 +83,7 @@ class BoostingModel:
 				 'objective':'rank:pairwise',
 				 'subsample':subsample,
 				 'colsample':colsample,
-				 'tree_method':'gpu_hist', 
+				 'tree_method':'hist', 
 				 #updater':'grow_gpu',
 				 'eval_metric':'ndcg',
 				 'predictor':'cpu_predictor',
@@ -77,21 +92,28 @@ class BoostingModel:
 
 
 		####
+		# print('click_bool' in self.train_df.columns)
+		# print('booking_bool' in self.train_df.columns)
+		# print(self.train_df.columns)
+		# input('hier')
 
-		dtrain = self.get_DMatrix_from_data(self.train_df, self.train_weight, self.train_groups,features)
-		dvalid = self.get_DMatrix_from_data(self.valid_df, self.valid_weight, self.valid_groups, features)
+		# Drop columns in function call to keep data but don't use it for training
+		dtrain = self.get_DMatrix_from_data(self.train_df.drop(columns=['srch_id', 'prop_id']), self.train_weight, self.train_groups,features)
+		dvalid = self.get_DMatrix_from_data(self.valid_df.drop(columns=['srch_id', 'prop_id']), self.valid_weight, self.valid_groups, features)
 
 
 		evallist = [(dtrain, 'train'), (dvalid, 'eval')]
 
 		num_round = 10000
 		bst = xgb.train(param, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
-		
-		#Save model
-		#bst.
-		#delete booster
 
-		#load model
+		
+		predictions = self.predict(bst, dvalid, self.valid_df, self.valid_weight)
+		# predictions is df containing [srch_id, prop_id, pred_score, weight] ordered on [srch_id, pred_score]
+		
+		################################
+		# Compute NDCG on predictions
+		################################
 
 		#Best NDCG score on valid set
 		best_score = bst.best_score
@@ -120,6 +142,8 @@ class BoostingModel:
 		file_valid = 'datasets/GA_valid'
 		self.train_df, self.train_weight, self.train_groups = self.get_DMatrix_data(file_train)
 		self.valid_df, self.valid_weight, self.valid_groups = self.get_DMatrix_data(file_valid)
+
+		
 
 		#genotype = np.random.randint(0,2,152)
 		#self.run_on_genotype(genotype)

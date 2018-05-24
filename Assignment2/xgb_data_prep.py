@@ -127,14 +127,14 @@ def _prep_files(df, name, train=True):
     # Remove unnecessary variables
     #########################################
 
-    df = df.drop(columns = ['srch_id', 'prop_id', 'date_time', 'min_date', 'max_date', 'day'])
+    df = df.drop(columns = ['date_time', 'min_date', 'max_date', 'day'])
     if train:
         df = df.drop(columns = ['booking_bool', 'click_bool', 'gross_bookings_usd'])
 
     #########################################
     # Get instance information in libsvm format
     #########################################
-    _get_libsvm(df, name)
+    #_get_libsvm(df, name)
     return df
 
 def parse_data(filepath, train_name='train', test_name='test'):
@@ -183,6 +183,7 @@ def parse_data(filepath, train_name='train', test_name='test'):
     # result = _prep_files(GA_train, 'GA_train')
     # result.to_csv('datasets/GA_train.csv', index = None )
 
+    # input('done')
     # del GA_train
     # del result
 

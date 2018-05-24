@@ -184,8 +184,8 @@ class GeneticAlgorithm:
 
 
 	def __init__(self):
-		self.mu = 10
-		self.lmbda = 4
+		self.mu = 100
+		self.lmbda = 50
 		self.num_gen = 100
 		self.n = 152
 		# todo
