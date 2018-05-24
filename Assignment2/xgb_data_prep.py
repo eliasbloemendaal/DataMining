@@ -114,7 +114,7 @@ def _prep_files(df, name, train=True):
     # Sort data on position for group input format file
     #########################################
 
-    df = df.sort_values('srch_id', kind = 'heapsort')
+    df.sort_values('srch_id', kind = 'heapsort', inplace = True)
 
 
     #########################################
@@ -148,9 +148,10 @@ def parse_data(filepath, train_name='train', test_name='test'):
     unique_ids = pd.Series(df.srch_id.unique())
 
     # final train set (all data)
-    #final_train = _prep_train(df)
+    # final_train = _prep_train(df)
     # result = _prep_files(final_train, 'final_train')
     # result.to_csv('datasets/final_train.csv', index = None )
+
 
     # del final_train
     #del result
@@ -168,9 +169,11 @@ def parse_data(filepath, train_name='train', test_name='test'):
 
 
     # test set (20 %)
-    # test_set = df[~df.srch_id.isin(cv_train_ids.tolist())]
-    # result = _prep_files(test_set, 'test_set')
-    # result.to_csv('datasets/test_set.csv', index = None )
+    test_set = df[~df.srch_id.isin(cv_train_ids.tolist())]
+    result = _prep_files(test_set, 'test_set')
+    result.to_csv('datasets/test_set.csv', index = None )
+
+    input('test set done')
 
     # del test_set
     # del result

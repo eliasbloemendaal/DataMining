@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import time
 import gc
+import os
 class BoostingModel:
 
 	def _get_dmatrix_ranking(self, df, groups, weights, column_indices, target='position'):
@@ -65,12 +66,113 @@ class BoostingModel:
 
 		return result
 
+	def  _chunkify(self, lst,n):
+	    return [lst[i::n] for i in range(n)]
+
+	def create_fold(self, fold_nr, K, features):
+		
+		#Create folds
+		groups = self._chunkify(self.train_groups, K)
+
+		# Get indices of desired fold in order to slice data
+		start_index_valid = sum([sum(groups[i]) for i in range(fold_nr)])
+		end_index_valid = start_index_valid + sum(groups[fold_nr])
+
+		print('start index {}, end index {} '.format(start_index_valid, end_index_valid))
+		#create valid set
+		valid_groups = groups.pop(fold_nr)
+		valid_df = self.train_df.iloc[start_index_valid:end_index_valid,:]
+		valid_weight = self.train_weight[start_index_valid:end_index_valid]
+
+		print(valid_df.shape)
+		print(valid_df.head())
+		dvalid = self.get_DMatrix_from_data(valid_df.drop(columns=['srch_id', 'prop_id']), valid_weight, valid_groups, features)
+
+		# free up some memory
+		# del valid_df
+		# del valid_groups
+		# del valid_weight
+
+		# create train set
+		train_groups = [item for sublist in groups for item in sublist] # flatten out chunkified list
+		fold_train_df =  self.train_df[~self.train_df.isin(valid_df)]
+		train_weight = self.train_weight[:start_index_valid].copy()
+		train_weight.extend(self.train_weight[end_index_valid:])
+
+		print('sum valid groups: {} valid shape {}, train shape {} overall shape {}'.format(sum(valid_groups), valid_df.shape, fold_train_df.shape, self.train_df.shape))
+		dtrain = self.get_DMatrix_from_data(fold_train_df.drop(columns=['srch_id', 'prop_id']), train_weight, train_groups, features)
+
+		return (dtrain, dvalid)
 
 
 
-	def run_on_genotype(self, genotype):
+
+
+
+	def cross_validate(self, genotype, K):
+		"""
+			Performs K-fold cross validation on genotype on train set
+			Returns pd.DataFrame with evaluations
+		"""
+
+		# init parameters and features
 		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
 		features = self.get_features(genotype)
+		# init list to store evaluations
+		evaluations = []
+		
+		param = {'max_depth':max_depth,
+				 'eta':eta,
+				 'silent':1,
+				 'gamma':gamma,
+				 'objective':'rank:pairwise',
+				 'subsample':subsample,
+				 'colsample':colsample,
+				 'tree_method':'hist', 
+				 #updater':'grow_gpu',
+				 'eval_metric':'ndcg',
+				 'predictor':'cpu_predictor',
+				 'seed':42, 
+				 'nthread':12}
+
+		num_round = 10000
+
+		for fold in range(K):
+
+			dtrain, dvalid = self.create_fold(fold, K, features)
+			evallist = [(dtrain, 'train'), (dvalid, 'eval')]
+			bst = xgb.train(param, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
+			predictions = self.predict(bst, dvalid, self.valid_df, self.valid_weight)
+
+			#############
+			# Compute NDCG and append to evaluations
+			#############
+
+		return evaluations
+
+		# Return the evaluation history of the cross validation as a Pandas df
+
+	def cross_val_genotypes(self, genotypes, K, folderpath):
+		"""
+			genotypes is a list of genotypes. Function performs K-fold cross validation on each genotype and writes results per genotype in folderpath
+		"""
+		filepath = os.path.join(folderpath,'geno_cross_validation.txt' )
+		with open(filepath, a) as f:
+			# cross validate each genotype
+			for genotype in genotypes:
+				evaluation = self.cross_validate(genotype, K)
+				
+				output_line = 'scores: {}, genotype {}'.format(evaluation, genotype)
+
+	def run_on_genotype(self, genotype):
+
+		evaluation = self.cross_validate(genotype, 10)
+		evaluation.to_csv('eval_test')
+		input('hier')
+		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
+		features = self.get_features(genotype)
+
+		
 		
 		#dtrain = self.get_DMatrix_from_data(self.df, self.weight, self.groups, features)
 		print('nr features: {}'.format(sum(features)))
