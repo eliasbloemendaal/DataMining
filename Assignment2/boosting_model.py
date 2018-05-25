@@ -78,14 +78,11 @@ class BoostingModel:
 		start_index_valid = sum([sum(groups[i]) for i in range(fold_nr)])
 		end_index_valid = start_index_valid + sum(groups[fold_nr])
 
-		print('start index {}, end index {} '.format(start_index_valid, end_index_valid))
 		#create valid set
 		valid_groups = groups.pop(fold_nr)
 		valid_df = self.train_df.iloc[start_index_valid:end_index_valid,:]
 		valid_weight = self.train_weight[start_index_valid:end_index_valid]
 
-		print(valid_df.shape)
-		print(valid_df.head())
 		dvalid = self.get_DMatrix_from_data(valid_df.drop(columns=['srch_id', 'prop_id']), valid_weight, valid_groups, features)
 
 		# free up some memory
@@ -95,14 +92,15 @@ class BoostingModel:
 
 		# create train set
 		train_groups = [item for sublist in groups for item in sublist] # flatten out chunkified list
-		fold_train_df =  self.train_df[~self.train_df.isin(valid_df)]
+		fold_train_df =  pd.concat([self.train_df.iloc[:start_index_valid,:], self.train_df.iloc[end_index_valid:,:]])
+		#self.train_df[~self.train_df.isin(valid_df)]
 		train_weight = self.train_weight[:start_index_valid].copy()
 		train_weight.extend(self.train_weight[end_index_valid:])
 
 		print('sum valid groups: {} valid shape {}, train shape {} overall shape {}'.format(sum(valid_groups), valid_df.shape, fold_train_df.shape, self.train_df.shape))
 		dtrain = self.get_DMatrix_from_data(fold_train_df.drop(columns=['srch_id', 'prop_id']), train_weight, train_groups, features)
 
-		return (dtrain, dvalid)
+		return (dtrain, dvalid, valid_df, valid_weight)
 
 
 
@@ -120,6 +118,7 @@ class BoostingModel:
 		features = self.get_features(genotype)
 		# init list to store evaluations
 		evaluations = []
+		best_num_rounds = []
 		
 		param = {'max_depth':max_depth,
 				 'eta':eta,
@@ -139,11 +138,12 @@ class BoostingModel:
 
 		for fold in range(K):
 
-			dtrain, dvalid = self.create_fold(fold, K, features)
+			dtrain, dvalid, valid_df, valid_weight = self.create_fold(fold, K, features)
 			evallist = [(dtrain, 'train'), (dvalid, 'eval')]
 			bst = xgb.train(param, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
-			predictions = self.predict(bst, dvalid, self.valid_df, self.valid_weight)
+			predictions = self.predict(bst, dvalid, valid_df, valid_weight)
 
+			best_num_rounds.append(bst.best_iteration)
 			#############
 			# Compute NDCG and append to evaluations
 			#############
