@@ -19,7 +19,7 @@ class BoostingModel:
 
 		#construct dmatrix and set weights, groups
 		dmatrix = xgb.DMatrix(feats.values, response.values)
-
+		# set groups and weights
 		dmatrix.set_group(groups)
 		dmatrix.set_weight(weights)
 
@@ -167,19 +167,6 @@ class BoostingModel:
 				output_line = 'scores: {}, genotype {} \n'.format(evaluation, genotype)
 
 	def run_on_genotype(self, genotype):
-
-		######### TEST ######################
-
-		#self.ensemble_predict('models/', 'datasets/final_testset.csv', 'test_set_predictions.txt')
-		self.train_and_save(genotype, num_round = 100, model_filepath ='models/model1.model')
-		self.visualize_model('models/model1.model')
-
-		#self.train_all_genotypes(genotypes, num_rounds)		
-		input('hier')
-
-
-		#####################################
-
 		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
 		features = self.get_features(genotype)		
 		
@@ -223,9 +210,6 @@ class BoostingModel:
 		#Best NDCG score on valid set
 		best_score = bst.best_score
 		bst.__del__()
-		# ^ its respective prediction
-		#pbest_pred = bst.best_iteration
-
 		dtrain.__del__()
 		dvalid.__del__()
 
@@ -233,8 +217,6 @@ class BoostingModel:
 		del dvalid
 		del bst
 		gc.collect()
-		print(gc.collect())
-		time.sleep(10)
 
 		return best_score
 
@@ -294,7 +276,7 @@ class BoostingModel:
 		bst.load_model(model_filepath)
 		
 		#plot the model
-		xgb.plot_tree(bst, num_trees = 1)
+		xgb.plot_tree(bst, num_trees = 1, rank_dir = 'LR')
 		plt.show()
 
 	def predict_new_data(self, model_filepath, dtest):
@@ -305,8 +287,6 @@ class BoostingModel:
 		bst = xgb.Booster()
 		bst.load_model(model_filepath)
 
-		#df = pd.read_csv(data_filepath, header = 0)
-		#dtest = xgb.DMatrix(df)
 
 		predictions = bst.predict(dtest)
 		return predictions
@@ -328,6 +308,7 @@ class BoostingModel:
 		# Take average of all predictions
 		df['pred_score'] = df[model_filenames].mean(axis=1)
 
+		# Sort predictions and write to desired format
 		df = df.sort_values(by=['srch_id', 'pred_score'], ascending=False, kind='heapsort')
 		df[['srch_id','prop_id']].to_csv(output_filepath, index = None)
 
