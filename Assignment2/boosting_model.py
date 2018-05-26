@@ -291,18 +291,23 @@ class BoostingModel:
 		predictions = bst.predict(dtest)
 		return predictions
 
-	def ensemble_predict(self, model_folder, data_filepath, output_filepath):
+
+	def ensemble_predict(self, model_folder, genotypes, data_filepath, output_filepath):
 		"""
 			Makes prediction on test set with each model and writes away final ranking in output_filepath
 		"""
 
 		# load data
 		df = pd.read_csv(data_filepath, header = 0)
-		dtest = xgb.DMatrix(df)
+		#dtest = xgb.DMatrix(df)
 
 		# make predictions using each model
 		model_filenames = os.listdir(model_folder)
-		for model_filename in model_filenames:
+		for index, model_filename in enumerate(model_filenames):
+			#construct dtest with respect to current model
+			features = self.get_features(genotypes[index])
+			dtest = xgb.DMatrix(df[features])
+			#predict
 			df[model_filename] = self.predict_new_data(os.path.join(model_folder, model_filename), dtest)
 
 		# Take average of all predictions
