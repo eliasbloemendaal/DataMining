@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import gc
 import os
+import matplotlib.pyplot as plt
 class BoostingModel:
 
 	def _get_dmatrix_ranking(self, df, groups, weights, column_indices, target='position'):
@@ -143,7 +144,7 @@ class BoostingModel:
 			bst = xgb.train(param, dtrain, num_round, evals= evallist, early_stopping_rounds = 10)
 			predictions = self.predict(bst, dvalid, valid_df, valid_weight)
 
-			best_num_rounds.append(bst.best_iteration)
+			best_num_rounds.append(bst.best_ntree_limit)
 			#############
 			# Compute NDCG and append to evaluations
 			#############
@@ -151,6 +152,7 @@ class BoostingModel:
 		return evaluations
 
 		# Return the evaluation history of the cross validation as a Pandas df
+
 
 	def cross_val_genotypes(self, genotypes, K, folderpath):
 		"""
@@ -162,17 +164,24 @@ class BoostingModel:
 			for genotype in genotypes:
 				evaluation = self.cross_validate(genotype, K)
 				
-				output_line = 'scores: {}, genotype {}'.format(evaluation, genotype)
+				output_line = 'scores: {}, genotype {} \n'.format(evaluation, genotype)
 
 	def run_on_genotype(self, genotype):
 
-		evaluation = self.cross_validate(genotype, 10)
-		evaluation.to_csv('eval_test')
-		input('hier')
-		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
-		features = self.get_features(genotype)
+		######### TEST ######################
 
-		
+		#self.ensemble_predict('models/', 'datasets/final_testset.csv', 'test_set_predictions.txt')
+		self.train_and_save(genotype, num_round = 100, model_filepath ='models/model1.model')
+		self.visualize_model('models/model1.model')
+
+		#self.train_all_genotypes(genotypes, num_rounds)		
+		input('hier')
+
+
+		#####################################
+
+		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
+		features = self.get_features(genotype)		
 		
 		#dtrain = self.get_DMatrix_from_data(self.df, self.weight, self.groups, features)
 		print('nr features: {}'.format(sum(features)))
@@ -192,12 +201,6 @@ class BoostingModel:
 				 'seed':42, 
 				 'nthread':12}
 
-
-		####
-		# print('click_bool' in self.train_df.columns)
-		# print('booking_bool' in self.train_df.columns)
-		# print(self.train_df.columns)
-		# input('hier')
 
 		# Drop columns in function call to keep data but don't use it for training
 		dtrain = self.get_DMatrix_from_data(self.train_df.drop(columns=['srch_id', 'prop_id']), self.train_weight, self.train_groups,features)
@@ -236,7 +239,97 @@ class BoostingModel:
 		return best_score
 
 
+	def train_and_save(self, genotype, num_round, model_filepath):
+		"""
+		Function to train final model based on optimized genotype.
+		self.train_df has to be based on  the full dataset 
+		model is saved on model_filepath
+		"""
+		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
+		features = self.get_features(genotype)		
 
+		#TODO: eval metric NDCG + overview params to be optimized
+		param = {'max_depth':max_depth,
+				 'eta':eta,
+				 'silent':0,
+				 'gamma':gamma,
+				 'objective':'rank:pairwise',
+				 'subsample':subsample,
+				 'colsample':colsample,
+				 'tree_method':'hist', 
+				 #updater':'grow_gpu',
+				 'eval_metric':'ndcg',
+				 'predictor':'cpu_predictor',
+				 'seed':42, 
+				 'nthread':12}
+
+
+		# Drop columns in function call to keep data but don't use it for training
+		dtrain = self.get_DMatrix_from_data(self.train_df.drop(columns=['srch_id', 'prop_id']), self.train_weight, self.train_groups,features)
+		
+		bst = xgb.train(param, dtrain, num_round)
+		bst.save_model(model_filepath)
+
+	def train_all_genotypes(self, genotypes, num_rounds, model_folder='models/'):
+		"""
+			function to train and save all genotypes on full dataset.
+			self.train_df has to be constructed from the full train set
+			function writes all model files to model_folder
+		"""
+		settings = zip(genotypes, num_rounds)
+
+		for index, setting in enumerate(settings):
+			genotype, num_round = setting
+			model_filepath = os.path.join(model_folder, str(index)+'.model')
+
+			self.train_and_save(genotype, num_round, model_filepath)
+
+
+	def visualize_model(self, model_filepath):
+		"""
+			Visualizes one tree of a model for reporting purposes
+		"""
+
+		bst = xgb.Booster()
+		bst.load_model(model_filepath)
+		
+		#plot the model
+		xgb.plot_tree(bst, num_trees = 1)
+		plt.show()
+
+	def predict_new_data(self, model_filepath, dtest):
+		"""
+			Function to load in saved model and predict unseen data
+			dtest is loaded DMatrix for test data
+		"""
+		bst = xgb.Booster()
+		bst.load_model(model_filepath)
+
+		#df = pd.read_csv(data_filepath, header = 0)
+		#dtest = xgb.DMatrix(df)
+
+		predictions = bst.predict(dtest)
+		return predictions
+
+	def ensemble_predict(self, model_folder, data_filepath, output_filepath):
+		"""
+			Makes prediction on test set with each model and writes away final ranking in output_filepath
+		"""
+
+		# load data
+		df = pd.read_csv(data_filepath, header = 0)
+		dtest = xgb.DMatrix(df)
+
+		# make predictions using each model
+		model_filenames = os.listdir(model_folder)
+		for model_filename in model_filenames:
+			df[model_filename] = self.predict_new_data(os.path.join(model_folder, model_filename), dtest)
+
+		# Take average of all predictions
+		df['pred_score'] = df[model_filenames].mean(axis=1)
+
+		df = df.sort_values(by=['srch_id', 'pred_score'], ascending=False, kind='heapsort')
+		df[['srch_id','prop_id']].to_csv(output_filepath, index = None)
 
 
 	def __init__(self):
@@ -244,6 +337,7 @@ class BoostingModel:
 		file_valid = 'datasets/GA_valid'
 		self.train_df, self.train_weight, self.train_groups = self.get_DMatrix_data(file_train)
 		self.valid_df, self.valid_weight, self.valid_groups = self.get_DMatrix_data(file_valid)
+
 
 		
 
