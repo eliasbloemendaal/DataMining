@@ -112,12 +112,10 @@ class BoostingModel:
 
 	def get_ndcg(self, relevances):
 		# print(relevances)
-		print('len: {}'.format(len(relevances)))
-		print('type: {}'.format(type(relevances)))
 		dcg = self.get_dcg(relevances)
-		print('dcg: {}'.format(dcg))
+		
 		total = self.get_dcg(relevances.sort_values(ascending=False))
-		print('total: {}'.format(total))
+		
 		return dcg/total
 
 	def get_mean_ndcg(self, predictions):
@@ -127,7 +125,7 @@ class BoostingModel:
 	def get_top_k_genotypes(self, file='best_individual.txt', k=25):
 		df = pd.read_csv(file, header=None)
 		df = df[df[0] == df[0].max()]
-		df = df.as_matrix()[:25, 1:]
+		df = df.as_matrix()[:k, 1:]
 		genotypes = df.tolist()
 
 		return genotypes
@@ -173,10 +171,14 @@ class BoostingModel:
 			#############
 			# Compute NDCG and append to evaluations
 			#############
+			try:
 
-			ndcg = self.get_mean_ndcg(predictions)
+				ndcg = self.get_mean_ndcg(predictions)
+				evaluations.append(ndcg)
+			except Exception as e:
+				print('div by 0')
 
-			evaluations.append(ndcg)
+			
 
 		return evaluations
 
@@ -187,13 +189,15 @@ class BoostingModel:
 		"""
 			genotypes is a list of genotypes. Function performs K-fold cross validation on each genotype and writes results per genotype in folderpath
 		"""
-		filepath = folderpath + '/' + 'geno_cross_validation.txt'
+		filepath = folderpath + '/geno_cross_validation.txt'
 		with open(filepath, 'a') as f:
 			# cross validate each genotype
 			for genotype in genotypes:
 				evaluation = self.cross_validate(genotype, K)
 				
 				output_line = 'scores: {}, genotype {} \n'.format(evaluation, genotype)
+				print('write line to {}'.format(filepath))
+				f.write(output_line)
 
 	def run_on_genotype(self, genotype):
 		eta, gamma, max_depth, min_child_weight, subsample, colsample = self.get_params(genotype)
@@ -291,7 +295,7 @@ class BoostingModel:
 
 		for index, setting in enumerate(settings):
 			genotype, num_round = setting
-			model_filepath = os.path.join(model_folder, str(index)+'.model')
+			model_filepath = model_folder +'{}.model'.format(index)
 
 			self.train_and_save(genotype, num_round, model_filepath)
 
@@ -356,6 +360,8 @@ class BoostingModel:
 
 		# file_test = 'datasets/final_testset'
 		print('creating datasets')
+		# with open('cross_val_evaluations/test4.txt', 'a') as f:
+		# 	f.write('test')
 		self.train_df, self.train_weight, self.train_groups = self.get_DMatrix_data(file_train)
 		self.ga_train_df, self.ga_train_weight, self.ga_train_groups = self.get_DMatrix_data(file_ga_train)
 		self.ga_valid_df, self.ga_valid_weight, self.ga_valid_groups = self.get_DMatrix_data(file_ga_valid)
@@ -364,12 +370,14 @@ class BoostingModel:
 
 		print('datasets created')
 
-		genotypes = self.get_top_k_genotypes(k=25)
+		genotypes = self.get_top_k_genotypes(k=10)
 
-		self.cross_val_genotypes(genotypes, K=5, folderpath = 'cross_val_evaluations')
+		# self.cross_val_genotypes(genotypes, K=2, folderpath = 'cross_val_evaluations')
 
-		# self.train_all_genotypes(genotypes, num_rounds)
+		num_rounds = [1000 for i in range(len(genotypes))]
 
+		self.train_all_genotypes(genotypes, num_rounds)
+		print('done training')
 		# self.ensemble_predict('models/', 'last_model/datasets/final_testset.csv', 'test_set_predictions.txt')
 
 		# benchmark = 0.399
